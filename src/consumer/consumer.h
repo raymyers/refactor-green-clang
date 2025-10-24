@@ -12,7 +12,8 @@ namespace clang
     class ASTContext;
 }
 
-struct CommandOptions {
+struct CommandOptions
+{
     bool isRenameCommand = false;
     std::string oldName;
     std::string newName;

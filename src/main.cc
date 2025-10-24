@@ -5,9 +5,9 @@
 #include "consumer/consumer.h"
 #include "utils/utils.h"
 
-#include <string>
-#include <sstream>
 #include <cstdlib>
+#include <sstream>
+#include <string>
 
 using namespace std;
 using namespace llvm;
@@ -18,47 +18,56 @@ using namespace clang::tooling;
 CommandOptions g_commandOptions;
 
 // Function to parse rename command arguments
-bool parseRenameCommand(int argc, const char **argv) {
-    if (argc < 4) return false;
-    
+bool parseRenameCommand(int argc, const char **argv)
+{
+    if (argc < 4)
+        return false;
+
     string command = argv[1];
-    if (command != "rename") return false;
-    
+    if (command != "rename")
+        return false;
+
     g_commandOptions.isRenameCommand = true;
-    
+
     // Parse oldname (potentially with line number)
     string oldNameArg = argv[2];
     size_t colonPos = oldNameArg.find(':');
-    if (colonPos != string::npos) {
+    if (colonPos != string::npos)
+    {
         g_commandOptions.oldName = oldNameArg.substr(0, colonPos);
         string lineStr = oldNameArg.substr(colonPos + 1);
-        
+
         // Simple integer parsing without exceptions
-        char* endPtr;
+        char *endPtr;
         long lineNum = strtol(lineStr.c_str(), &endPtr, 10);
-        if (*endPtr != '\0' || lineNum <= 0) {
+        if (*endPtr != '\0' || lineNum <= 0)
+        {
             llvm::errs() << "Invalid line number: " << lineStr << "\n";
             return false;
         }
         g_commandOptions.targetLine = static_cast<int>(lineNum);
-    } else {
+    }
+    else
+    {
         g_commandOptions.oldName = oldNameArg;
     }
-    
+
     g_commandOptions.newName = argv[3];
-    
+
     return true;
 }
 
 int main(int argc, const char **argv)
 {
     // Check if this is a rename command
-    vector<const char*> newArgv;
-    if (parseRenameCommand(argc, argv)) {
+    vector<const char *> newArgv;
+    if (parseRenameCommand(argc, argv))
+    {
         // For rename command, adjust argv to skip the rename-specific arguments
         // and pass the remaining arguments to CommonOptionsParser
         newArgv.push_back(argv[0]); // program name
-        for (int i = 4; i < argc; ++i) {
+        for (int i = 4; i < argc; ++i)
+        {
             newArgv.push_back(argv[i]);
         }
         argc = static_cast<int>(newArgv.size());

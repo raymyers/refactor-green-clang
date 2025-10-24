@@ -1,26 +1,28 @@
+---
 name: CI
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [master, main]
   pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install clang-format
-      run: sudo apt-get update && sudo apt-get install -y clang-format
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
 
-    - name: Check code formatting
-      run: |
-        find src -name "*.cc" -o -name "*.h" | xargs clang-format --dry-run --Werror || {
-          echo "Code formatting issues found. Run 'clang-format -i src/**/*.{cc,h}' to fix."
-          exit 1
-        }
+      - name: Check code formatting
+        run: |
+          find src -name "*.cc" -o -name "*.h" | \
+            xargs clang-format --dry-run --Werror || {
+            echo "Code formatting issues found. Run 'clang-format -i src/**/*.{cc,h}' to fix."
+            exit 1
+          }
 
   build-and-test:
     runs-on: ubuntu-latest
@@ -30,26 +32,29 @@ jobs:
         build-type: [Debug, Release]
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          clang-19 \
-          llvm-19-dev \
-          libclang-19-dev \
-          cmake \
-          build-essential
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang-19 \
+            llvm-19-dev \
+            libclang-19-dev \
+            cmake \
+            build-essential
 
-    - name: Set up Clang environment
-      run: |
-        sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
-        sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
-        sudo update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-19 100
+      - name: Set up Clang environment
+        run: |
+          sudo update-alternatives --install /usr/bin/clang clang \
+            /usr/bin/clang-19 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ \
+            /usr/bin/clang++-19 100
+          sudo update-alternatives --install /usr/bin/llvm-config llvm-config \
+            /usr/bin/llvm-config-19 100
 
-    - name: Create build directory
-      run: mkdir build
+      - name: Create build directory
+        run: mkdir build
 
     - name: Configure CMake
       working-directory: build
@@ -99,10 +104,10 @@ jobs:
           cmake \
           build-essential
 
-    - name: Build and test
-      run: |
-        mkdir build
-        cd build
-        cmake ..
-        make
-        make test
+      - name: Build and test
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make
+          make test
