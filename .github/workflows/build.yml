@@ -15,7 +15,7 @@ jobs:
         os: [ubuntu-20.04, ubuntu-22.04]
         clang-version: [18, 19]
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             clang-version: 19
             test-examples: true
 
@@ -25,6 +25,14 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
+          sudo apt-get install -y wget lsb-release software-properties-common gnupg
+          
+          # Add LLVM repository
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          sudo add-apt-repository -y "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-${{ matrix.clang-version }} main"
+          sudo apt-get update
+          
+          # Install clang and development tools
           sudo apt-get install -y \
             clang-${{ matrix.clang-version }} \
             llvm-${{ matrix.clang-version }}-dev \
@@ -64,7 +72,7 @@ jobs:
       matrix:
         clang-version: [18, 19]
         include:
-          - clang-version: 18
+          - clang-version: 19
             test-examples: true
 
     steps:
