@@ -19,6 +19,7 @@ set(CLANG_TOOL_SRC
         
         transformer/transformer.cc
         transformer/functioncalltransformer.cc
+        transformer/renametransformer.cc
         
         finder/finder.cc
         finder/integervariablefinder.cc

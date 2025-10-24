@@ -1,130 +1,136 @@
+---
 name: Build
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [master, main]
   pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-20.04]
-        clang-version: [17, 18, 19]
+        os: [ubuntu-20.04, ubuntu-22.04]
+        clang-version: [18, 19]
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             clang-version: 19
             test-examples: true
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          clang-${{ matrix.clang-version }} \
-          llvm-${{ matrix.clang-version }}-dev \
-          libclang-${{ matrix.clang-version }}-dev \
-          cmake \
-          build-essential
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget lsb-release software-properties-common gnupg
+          
+          # Add LLVM repository
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          sudo add-apt-repository -y "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-${{ matrix.clang-version }} main"
+          sudo apt-get update
+          
+          # Install clang and development tools
+          sudo apt-get install -y \
+            clang-${{ matrix.clang-version }} \
+            llvm-${{ matrix.clang-version }}-dev \
+            libclang-${{ matrix.clang-version }}-dev \
+            cmake \
+            build-essential
 
-    - name: Set up Clang environment
-      run: |
-        sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${{ matrix.clang-version }} 100
-        sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${{ matrix.clang-version }} 100
-        sudo update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-${{ matrix.clang-version }} 100
+      - name: Set up Clang environment
+        run: |
+          sudo update-alternatives --install /usr/bin/clang clang \
+            /usr/bin/clang-${{ matrix.clang-version }} 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ \
+            /usr/bin/clang++-${{ matrix.clang-version }} 100
+          sudo update-alternatives --install /usr/bin/llvm-config \
+            llvm-config /usr/bin/llvm-config-${{ matrix.clang-version }} 100
 
-    - name: Verify Clang installation
-      run: |
-        clang++ --version
-        llvm-config --version
+      - name: Create build directory
+        run: mkdir build
 
-    - name: Create build directory
-      run: mkdir build
+      - name: Configure CMake
+        working-directory: build
+        run: cmake -DCMAKE_BUILD_TYPE=Release ..
 
-    - name: Configure CMake
-      working-directory: build
-      run: cmake ..
+      - name: Build
+        working-directory: build
+        run: make
 
-    - name: Build
-      working-directory: build
-      run: make
-
-    - name: Test basic functionality
-      if: matrix.test-examples
-      run: |
-        echo "Testing clang-tool with example..."
-        ./build/bin/clang-tool examples/simple.cc -- -std=c++11
-        echo "Build and basic test successful!"
-
-    - name: Upload build artifacts
-      if: matrix.test-examples
-      uses: actions/upload-artifact@v4
-      with:
-        name: clang-tool-${{ matrix.os }}-clang${{ matrix.clang-version }}
-        path: |
-          build/bin/clang-tool
-          build/bin/builtInInclude.path
-        retention-days: 7
+      - name: Test with examples
+        if: matrix.test-examples
+        run: |
+          ./build/bin/clang-tool examples/simple.cc -- -std=c++11
+          echo "Build completed successfully"
 
   build-macos:
     runs-on: macos-latest
+    strategy:
+      matrix:
+        clang-version: [18, 19]
+        include:
+          - clang-version: 19
+            test-examples: true
+
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        # Install a specific LLVM version to avoid compatibility issues
-        brew install llvm@18 cmake
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install llvm@${{ matrix.clang-version }} cmake
 
-    - name: Set up LLVM environment
-      run: |
-        # Use LLVM 18 to avoid bitcode compatibility issues
-        LLVM_PREFIX=$(brew --prefix llvm@18)
-        echo "$LLVM_PREFIX/bin" >> $GITHUB_PATH
-        echo "LDFLAGS=-L$LLVM_PREFIX/lib" >> $GITHUB_ENV
-        echo "CPPFLAGS=-I$LLVM_PREFIX/include" >> $GITHUB_ENV
-        echo "CC=$LLVM_PREFIX/bin/clang" >> $GITHUB_ENV
-        echo "CXX=$LLVM_PREFIX/bin/clang++" >> $GITHUB_ENV
-        echo "CMAKE_C_COMPILER=$LLVM_PREFIX/bin/clang" >> $GITHUB_ENV
-        echo "CMAKE_CXX_COMPILER=$LLVM_PREFIX/bin/clang++" >> $GITHUB_ENV
+      - name: Set up Clang environment
+        run: |
+          echo "/opt/homebrew/opt/llvm@${{ matrix.clang-version }}/bin" \
+            >> $GITHUB_PATH
+          export LLVM_DIR="/opt/homebrew/opt/llvm@${{ matrix.clang-version }}/lib/cmake/llvm"
+          export Clang_DIR="/opt/homebrew/opt/llvm@${{ matrix.clang-version }}/lib/cmake/clang"
+          echo "LLVM_DIR=$LLVM_DIR" >> $GITHUB_ENV
+          echo "Clang_DIR=$Clang_DIR" >> $GITHUB_ENV
 
-    - name: Verify LLVM installation
-      run: |
-        clang++ --version
-        llvm-config --version
-        echo "LLVM Path: $(which clang++)"
-        echo "LLVM Config: $(which llvm-config)"
+      - name: Create build directory
+        run: mkdir build
 
-    - name: Create build directory
-      run: mkdir build
+      - name: Configure CMake
+        working-directory: build
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_DIR="$LLVM_DIR" \
+            -DClang_DIR="$Clang_DIR" ..
 
-    - name: Configure CMake
-      working-directory: build
-      run: |
-        cmake .. \
-          -DCMAKE_C_COMPILER=$CMAKE_C_COMPILER \
-          -DCMAKE_CXX_COMPILER=$CMAKE_CXX_COMPILER
+      - name: Build
+        working-directory: build
+        run: make
 
-    - name: Build
-      working-directory: build
-      run: make
+      - name: Test with examples
+        if: matrix.test-examples
+        run: |
+          ./build/bin/clang-tool examples/simple.cc -- -std=c++11
+          echo "Build completed successfully"
 
-    - name: Test basic functionality
-      run: |
-        echo "Testing clang-tool with example..."
-        ./build/bin/clang-tool examples/simple.cc -- -std=c++11
-        echo "macOS build and test successful!"
+  compatibility-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: clang-tool-macos-llvm18
-        path: |
-          build/bin/clang-tool
-          build/bin/builtInInclude.path
-        retention-days: 7
+      - name: Install minimal dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang \
+            llvm-dev \
+            libclang-dev \
+            cmake \
+            build-essential
+
+      - name: Build and test
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make
+          make test

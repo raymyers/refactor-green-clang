@@ -24,7 +24,39 @@ make
 ```
 
 ## Usage
-A simple example is included in ```src/transformers/functioncalltransformer.cc``` that rewriters all function calls from ```functionName()``` to ```fn_functionName()```.
+
+### Rename Command
+The tool now supports a powerful rename command that can rename variables, functions, parameters, and their references throughout your code:
+
+```bash
+# Rename all occurrences of 'oldname' to 'newname'
+bin/clang-tool rename oldname newname source.cc -- -std=c++11
+
+# Rename only the declaration on a specific line
+bin/clang-tool rename oldname:123 newname source.cc -- -std=c++11
+```
+
+**Examples:**
+```bash
+# Rename a variable
+bin/clang-tool rename counter globalCounter test.cc -- -std=c++11
+
+# Rename a function
+bin/clang-tool rename oldFunction newFunction test.cc -- -std=c++11
+
+# Rename only the variable declared on line 8
+bin/clang-tool rename oldvar:8 localvar test.cc -- -std=c++11
+```
+
+The rename command supports:
+- Variable declarations and references
+- Function declarations and calls
+- Function parameters
+- Member variables and member expressions
+- Line-specific renaming for precise control
+
+### Default Function Call Transformation
+A simple example is included in ```src/transformers/functioncalltransformer.cc``` that rewrites all function calls from ```functionName()``` to ```fn_functionName()```.
 
 ```bash
 bin/clang-tool ../examples/simple.cc -- -std=c++11
