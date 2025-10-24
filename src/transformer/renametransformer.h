@@ -19,6 +19,7 @@ class RenameTransformer : public Transformer
     std::string newName;
     int targetLine; // -1 means rename all occurrences
     std::set<std::string> renamedIdentifiers;
+    const clang::Decl* targetDecl; // For line-specific renaming, store the target declaration
 
   public:
     explicit RenameTransformer(clang::ASTContext &context, clang::Rewriter &rewriter, 
@@ -31,6 +32,9 @@ class RenameTransformer : public Transformer
 
   private:
     bool shouldRename(const clang::SourceLocation &location) const;
+    bool isReferenceTo(const clang::DeclRefExpr* ref, const clang::Decl* decl) const;
+    bool isMemberAccessTo(const clang::MemberExpr* member, const clang::Decl* decl) const;
+    void renameDeclaration(const clang::NamedDecl* namedDecl);
 };
 
 #endif

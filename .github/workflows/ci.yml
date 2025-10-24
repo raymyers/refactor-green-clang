@@ -200,6 +200,62 @@ jobs:
           exit 1
         fi
 
+    - name: Test scope-aware renaming
+      run: |
+        echo "=== Testing scope-aware renaming ==="
+        
+        # Create test file with multiple scopes
+        cat > test_scope_aware.cc << 'EOF'
+        void function1() {
+            int localVar = 10;
+            int result = localVar + 1;
+        }
+        void function2() {
+            int localVar = 20;
+            int result = localVar + 2;
+        }
+        class TestClass {
+        public:
+            int memberVar;
+            void method() { memberVar = 100; }
+        };
+        class AnotherClass {
+        public:
+            int memberVar;
+            void method() { memberVar = 200; }
+        };
+        EOF
+        
+        # Test 1: localVar should only rename first occurrence
+        output=$(./build/bin/clang-tool rename localVar firstLocal test_scope_aware.cc -- -std=c++11)
+        echo "Scope-aware localVar rename output:"
+        echo "$output"
+        
+        if echo "$output" | grep -q "int firstLocal = 10" && \
+           echo "$output" | grep -q "firstLocal + 1" && \
+           echo "$output" | grep -q "int localVar = 20" && \
+           echo "$output" | grep -q "localVar + 2"; then
+          echo "✅ Scope-aware localVar renaming successful"
+        else
+          echo "❌ Scope-aware localVar renaming failed"
+          exit 1
+        fi
+        
+        # Test 2: memberVar should only rename first occurrence
+        output=$(./build/bin/clang-tool rename memberVar firstMember test_scope_aware.cc -- -std=c++11)
+        echo "Scope-aware memberVar rename output:"
+        echo "$output"
+        
+        if echo "$output" | grep -q "int firstMember;" && \
+           echo "$output" | grep -q "firstMember = 100" && \
+           echo "$output" | grep -q "int memberVar;" && \
+           echo "$output" | grep -q "memberVar = 200"; then
+          echo "✅ Scope-aware memberVar renaming successful"
+        else
+          echo "❌ Scope-aware memberVar renaming failed"
+          exit 1
+        fi
+
     - name: Check binary size and dependencies
       run: |
         echo "=== Binary information ==="
