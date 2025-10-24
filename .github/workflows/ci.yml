@@ -178,6 +178,27 @@ jobs:
           echo "❌ Parameter renaming failed"
           exit 1
         fi
+        
+        # Test 5: Member variable renaming
+        cat > test_rename_member.cc << 'EOF'
+        class TestClass {
+        public:
+            int memberVar;
+            void setVar(int val) { memberVar = val; }
+            int getVar() { return memberVar; }
+        };
+        EOF
+        
+        output=$(./build/bin/clang-tool rename memberVar dataField test_rename_member.cc -- -std=c++11)
+        echo "Member variable rename output:"
+        echo "$output"
+        
+        if echo "$output" | grep -q "int dataField;" && echo "$output" | grep -q "dataField = val" && echo "$output" | grep -q "return dataField"; then
+          echo "✅ Member variable renaming successful"
+        else
+          echo "❌ Member variable renaming failed"
+          exit 1
+        fi
 
     - name: Check binary size and dependencies
       run: |
