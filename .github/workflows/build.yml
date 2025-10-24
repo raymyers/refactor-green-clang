@@ -78,25 +78,37 @@ jobs:
 
     - name: Install dependencies
       run: |
-        brew install llvm cmake
+        # Install a specific LLVM version to avoid compatibility issues
+        brew install llvm@18 cmake
 
     - name: Set up LLVM environment
       run: |
-        echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
-        echo "LDFLAGS=-L$(brew --prefix llvm)/lib" >> $GITHUB_ENV
-        echo "CPPFLAGS=-I$(brew --prefix llvm)/include" >> $GITHUB_ENV
+        # Use LLVM 18 to avoid bitcode compatibility issues
+        LLVM_PREFIX=$(brew --prefix llvm@18)
+        echo "$LLVM_PREFIX/bin" >> $GITHUB_PATH
+        echo "LDFLAGS=-L$LLVM_PREFIX/lib" >> $GITHUB_ENV
+        echo "CPPFLAGS=-I$LLVM_PREFIX/include" >> $GITHUB_ENV
+        echo "CC=$LLVM_PREFIX/bin/clang" >> $GITHUB_ENV
+        echo "CXX=$LLVM_PREFIX/bin/clang++" >> $GITHUB_ENV
+        echo "CMAKE_C_COMPILER=$LLVM_PREFIX/bin/clang" >> $GITHUB_ENV
+        echo "CMAKE_CXX_COMPILER=$LLVM_PREFIX/bin/clang++" >> $GITHUB_ENV
 
     - name: Verify LLVM installation
       run: |
         clang++ --version
         llvm-config --version
+        echo "LLVM Path: $(which clang++)"
+        echo "LLVM Config: $(which llvm-config)"
 
     - name: Create build directory
       run: mkdir build
 
     - name: Configure CMake
       working-directory: build
-      run: cmake ..
+      run: |
+        cmake .. \
+          -DCMAKE_C_COMPILER=$CMAKE_C_COMPILER \
+          -DCMAKE_CXX_COMPILER=$CMAKE_CXX_COMPILER
 
     - name: Build
       working-directory: build
@@ -107,3 +119,12 @@ jobs:
         echo "Testing clang-tool with example..."
         ./build/bin/clang-tool examples/simple.cc -- -std=c++11
         echo "macOS build and test successful!"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: clang-tool-macos-llvm18
+        path: |
+          build/bin/clang-tool
+          build/bin/builtInInclude.path
+        retention-days: 7
