@@ -3,7 +3,7 @@
 [![Build](https://github.com/raymyers/refactor-green-clang/actions/workflows/build.yml/badge.svg)](https://github.com/raymyers/refactor-green-clang/actions/workflows/build.yml)
 [![CI](https://github.com/raymyers/refactor-green-clang/actions/workflows/ci.yml/badge.svg)](https://github.com/raymyers/refactor-green-clang/actions/workflows/ci.yml)
 
-clang-tool is a simple and powerful project template for clang-based tools using libtooling[1]. It helps getting started to write standalone tools useful for refactoring, static code analysis, auto-completion etc.
+clang-tool is a powerful general-purpose rename utility built with Clang's LibTooling[1]. It can analyze C/C++ code to identify functions and variables, and perform precise semantic-aware renaming operations.
 
 ## Compatibility
 
@@ -24,28 +24,43 @@ make
 ```
 
 ## Usage
-A simple example is included in ```src/transformers/functioncalltransformer.cc``` that rewriters all function calls from ```functionName()``` to ```fn_functionName()```.
+
+### Code Analysis Mode (Default)
+Run without rename options to analyze code and identify functions and variables:
 
 ```bash
-bin/clang-tool ../examples/simple.cc -- -std=c++11
+bin/clang-tool examples/simple.cc -- -std=c++11
 ```
 
-Another example can be found in ```finder/integervariablefinder.cc```. Uncomment the ```intFinder``` in ```consumer.cc``` to print all integer variables.
+This will output:
+- User-defined functions vs built-in functions
+- All variables found in the code
+- The formatted source code
 
-```cpp
-FunctionCallTransformer fntransformer(context, rewriter);
-fntransformer.start();
-fntransformer.print(llvm::outs());
+### Rename Mode
+Use command line options to perform targeted renames:
 
-IntegerVariableFinder intFinder(context);
-intFinder.start();
-```
-
-You can even specifiy more than one source file when calling clang-tool. 
 ```bash
-bin/clang-tool s1.cc s2.cc -- -std=c++11
+# Rename a function
+bin/clang-tool --rename-from=old_function --rename-to=new_function --rename-type=function source.c -- -std=c89
+
+# Rename a variable  
+bin/clang-tool --rename-from=old_var --rename-to=new_var --rename-type=variable source.c -- -std=c89
 ```
-More matchers for writing own finders and transformers are available under [2].
+
+### Command Line Options
+- `--rename-from=<old_name>` - Name to rename from
+- `--rename-to=<new_name>` - Name to rename to  
+- `--rename-type=<type>` - Type of entity to rename (`function` or `variable`)
+
+### Example: Refactoring Obfuscated Code
+The included `donut_test.sh` script demonstrates how to use the tool to transform obfuscated code with single-character variable names into readable code:
+
+```bash
+./donut_test.sh
+```
+
+This script renames 22 variables in the famous donut.c, transforming cryptic names like `A`, `B`, `i`, `j` into meaningful names like `rotation_x`, `rotation_y`, `torus_angle`, `circle_angle`.
 
 ### Specifiying compiler arguments
 There are multiple ways to provide your projects' compiler arguments to a clang tool:

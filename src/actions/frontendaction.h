@@ -16,8 +16,16 @@ namespace clang
 class XFrontendAction : public clang::ASTFrontendAction
 {
   public:
+    XFrontendAction();
+    XFrontendAction(const std::string &renameFrom, const std::string &renameTo, const std::string &renameType);
     virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &compiler,
                                                                   llvm::StringRef inFile) override;
+
+  private:
+    std::string renameFrom;
+    std::string renameTo;
+    std::string renameType;
+    bool hasRenameOptions;
 };
 
 #endif

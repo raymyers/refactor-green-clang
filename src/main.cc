@@ -11,9 +11,22 @@ using namespace llvm;
 using namespace clang;
 using namespace clang::tooling;
 
+// Command line options
+static llvm::cl::OptionCategory ctCategory("clang-tool options");
+
+static llvm::cl::opt<std::string> RenameFrom("rename-from", llvm::cl::desc("Name to rename from"),
+                                             llvm::cl::value_desc("old_name"), llvm::cl::cat(ctCategory));
+
+static llvm::cl::opt<std::string> RenameTo("rename-to", llvm::cl::desc("Name to rename to"),
+                                           llvm::cl::value_desc("new_name"), llvm::cl::cat(ctCategory));
+
+static llvm::cl::opt<std::string> RenameType("rename-type",
+                                             llvm::cl::desc("Type of entity to rename (function, variable)"),
+                                             llvm::cl::value_desc("type"), llvm::cl::init("function"),
+                                             llvm::cl::cat(ctCategory));
+
 int main(int argc, const char **argv)
 {
-    llvm::cl::OptionCategory ctCategory("clang-tool options");
     auto expectedParser = CommonOptionsParser::create(argc, argv, ctCategory);
     if (!expectedParser)
     {
@@ -38,7 +51,17 @@ int main(int argc, const char **argv)
         for (auto &s : compileArgs)
             llvm::outs() << s << "\n";
 
-        auto xfrontendAction = std::make_unique<XFrontendAction>();
+        std::unique_ptr<XFrontendAction> xfrontendAction;
+
+        if (!RenameFrom.empty() && !RenameTo.empty())
+        {
+            xfrontendAction = std::make_unique<XFrontendAction>(RenameFrom, RenameTo, RenameType);
+        }
+        else
+        {
+            xfrontendAction = std::make_unique<XFrontendAction>();
+        }
+
         utils::customRunToolOnCodeWithArgs(move(xfrontendAction), sourcetxt, compileArgs, sourceFile);
     }
 

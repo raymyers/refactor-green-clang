@@ -14,7 +14,7 @@ namespace clang
 
 class FunctionCallTransformer : public Transformer
 {
-  private:
+  protected:
     std::set<std::string> functions;
 
   public:
