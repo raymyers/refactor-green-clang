@@ -1,5 +1,15 @@
 # clang-tool
+
+[![Build](https://github.com/raymyers/refactor-green-clang/actions/workflows/build.yml/badge.svg)](https://github.com/raymyers/refactor-green-clang/actions/workflows/build.yml)
+[![CI](https://github.com/raymyers/refactor-green-clang/actions/workflows/ci.yml/badge.svg)](https://github.com/raymyers/refactor-green-clang/actions/workflows/ci.yml)
+
 clang-tool is a simple and powerful project template for clang-based tools using libtooling[1]. It helps getting started to write standalone tools useful for refactoring, static code analysis, auto-completion etc.
+
+## Compatibility
+
+- **Clang/LLVM**: Compatible with Clang 17, 18, and 19
+- **Platforms**: Linux (Ubuntu 20.04+), macOS
+- **Build System**: CMake 3.10+
 
 ## Installation
 Install the necessary llvm and clang headers and libraries for you system an run:

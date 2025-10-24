@@ -9,7 +9,6 @@
 namespace clang
 {
     class ASTContext;
-    class raw_ostream;
     class Rewriter;
 } // namespace clang
 
@@ -22,7 +21,7 @@ class FunctionCallTransformer : public Transformer
     explicit FunctionCallTransformer(clang::ASTContext &context, clang::Rewriter &rewriter);
 
     virtual void start() override;
-    virtual void run(const clang::ast_matchers::MatchFinder::MatchResult &result);
+    virtual void run(const clang::ast_matchers::MatchFinder::MatchResult &result) override;
     virtual void print(clang::raw_ostream &stream) override;
 };
 
