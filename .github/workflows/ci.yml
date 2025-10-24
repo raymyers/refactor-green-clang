@@ -98,6 +98,87 @@ jobs:
           exit 1
         fi
 
+    - name: Test rename functionality
+      run: |
+        echo "=== Testing rename functionality ==="
+        
+        # Test 1: Variable renaming
+        cat > test_rename_var.cc << 'EOF'
+        int oldVariable = 42;
+        int main() {
+            return oldVariable;
+        }
+        EOF
+        
+        output=$(./build/bin/clang-tool rename oldVariable newVariable test_rename_var.cc -- -std=c++11)
+        echo "Variable rename output:"
+        echo "$output"
+        
+        if echo "$output" | grep -q "int newVariable = 42" && echo "$output" | grep -q "return newVariable"; then
+          echo "✅ Variable renaming successful"
+        else
+          echo "❌ Variable renaming failed"
+          exit 1
+        fi
+        
+        # Test 2: Function renaming
+        cat > test_rename_func.cc << 'EOF'
+        void oldFunction() {}
+        int main() {
+            oldFunction();
+            return 0;
+        }
+        EOF
+        
+        output=$(./build/bin/clang-tool rename oldFunction newFunction test_rename_func.cc -- -std=c++11)
+        echo "Function rename output:"
+        echo "$output"
+        
+        if echo "$output" | grep -q "void newFunction()" && echo "$output" | grep -q "newFunction()"; then
+          echo "✅ Function renaming successful"
+        else
+          echo "❌ Function renaming failed"
+          exit 1
+        fi
+        
+        # Test 3: Line-specific renaming
+        cat > test_rename_line.cc << 'EOF'
+        int globalVar = 1;
+        int main() {
+            int globalVar = 2;
+            return globalVar;
+        }
+        EOF
+        
+        output=$(./build/bin/clang-tool rename globalVar:3 localVar test_rename_line.cc -- -std=c++11)
+        echo "Line-specific rename output:"
+        echo "$output"
+        
+        if echo "$output" | grep -q "int globalVar = 1" && echo "$output" | grep -q "int localVar = 2"; then
+          echo "✅ Line-specific renaming successful"
+        else
+          echo "❌ Line-specific renaming failed"
+          exit 1
+        fi
+        
+        # Test 4: Parameter renaming
+        cat > test_rename_param.cc << 'EOF'
+        int func(int oldParam) {
+            return oldParam * 2;
+        }
+        EOF
+        
+        output=$(./build/bin/clang-tool rename oldParam newParam test_rename_param.cc -- -std=c++11)
+        echo "Parameter rename output:"
+        echo "$output"
+        
+        if echo "$output" | grep -q "int func(int newParam)" && echo "$output" | grep -q "return newParam"; then
+          echo "✅ Parameter renaming successful"
+        else
+          echo "❌ Parameter renaming failed"
+          exit 1
+        fi
+
     - name: Check binary size and dependencies
       run: |
         echo "=== Binary information ==="
