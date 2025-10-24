@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+
+  build-release:
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_name: clang-tool-linux-x64
+            clang_version: 19
+          - os: macos-latest
+            asset_name: clang-tool-macos-x64
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          clang-${{ matrix.clang_version }} \
+          llvm-${{ matrix.clang_version }}-dev \
+          libclang-${{ matrix.clang_version }}-dev \
+          cmake \
+          build-essential
+        sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${{ matrix.clang_version }} 100
+        sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${{ matrix.clang_version }} 100
+        sudo update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-${{ matrix.clang_version }} 100
+
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install llvm cmake
+        echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
+
+    - name: Build
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        make
+
+    - name: Test
+      run: |
+        ./build/bin/clang-tool examples/simple.cc -- -std=c++11
+
+    - name: Package
+      run: |
+        mkdir -p release
+        cp build/bin/clang-tool release/
+        cp build/bin/builtInInclude.path release/
+        cp README.md release/
+        cp LICENSE release/
+        tar -czf ${{ matrix.asset_name }}.tar.gz -C release .
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./${{ matrix.asset_name }}.tar.gz
+        asset_name: ${{ matrix.asset_name }}.tar.gz
+        asset_content_type: application/gzip

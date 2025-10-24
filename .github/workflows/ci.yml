@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install clang-format
+      run: sudo apt-get update && sudo apt-get install -y clang-format
+
+    - name: Check code formatting
+      run: |
+        find src -name "*.cc" -o -name "*.h" | xargs clang-format --dry-run --Werror || {
+          echo "Code formatting issues found. Run 'clang-format -i src/**/*.{cc,h}' to fix."
+          exit 1
+        }
+
+  build-and-test:
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        build-type: [Debug, Release]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          clang-19 \
+          llvm-19-dev \
+          libclang-19-dev \
+          cmake \
+          build-essential
+
+    - name: Set up Clang environment
+      run: |
+        sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
+        sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
+        sudo update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-19 100
+
+    - name: Create build directory
+      run: mkdir build
+
+    - name: Configure CMake
+      working-directory: build
+      run: cmake -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} ..
+
+    - name: Build
+      working-directory: build
+      run: make VERBOSE=1
+
+    - name: Test with simple example
+      run: |
+        echo "=== Testing function call transformation ==="
+        output=$(./build/bin/clang-tool examples/simple.cc -- -std=c++11)
+        echo "$output"
+        
+        # Check if transformation occurred
+        if echo "$output" | grep -q "fn_print()"; then
+          echo "✅ Function call transformation successful"
+        else
+          echo "❌ Function call transformation failed"
+          exit 1
+        fi
+
+    - name: Test with custom C++ file
+      run: |
+        echo "=== Testing with custom C++ file ==="
+        cat > test_input.cc << 'EOF'
+        #include <iostream>
+        void hello() { std::cout << "Hello World" << std::endl; }
+        void goodbye() { std::cout << "Goodbye" << std::endl; }
+        int main() {
+            hello();
+            goodbye();
+            return 0;
+        }
+        EOF
+        
+        output=$(./build/bin/clang-tool test_input.cc -- -std=c++11)
+        echo "$output"
+        
+        # Check if both functions were transformed
+        if echo "$output" | grep -q "fn_hello()" && echo "$output" | grep -q "fn_goodbye()"; then
+          echo "✅ Multiple function transformation successful"
+        else
+          echo "❌ Multiple function transformation failed"
+          exit 1
+        fi
+
+    - name: Check binary size and dependencies
+      run: |
+        echo "=== Binary information ==="
+        ls -lh build/bin/clang-tool
+        file build/bin/clang-tool
+        echo "=== Dependencies ==="
+        ldd build/bin/clang-tool | head -10
+
+  compatibility-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ubuntu-version: ["20.04", "22.04"]
+    
+    container:
+      image: ubuntu:${{ matrix.ubuntu-version }}
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        apt-get update
+        apt-get install -y \
+          clang \
+          llvm-dev \
+          libclang-dev \
+          cmake \
+          build-essential
+
+    - name: Build and test
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        make
+        cd ..
+        ./build/bin/clang-tool examples/simple.cc -- -std=c++11

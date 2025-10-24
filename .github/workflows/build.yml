@@ -1,0 +1,109 @@
+name: Build
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-20.04]
+        clang-version: [17, 18, 19]
+        include:
+          - os: ubuntu-latest
+            clang-version: 19
+            test-examples: true
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          clang-${{ matrix.clang-version }} \
+          llvm-${{ matrix.clang-version }}-dev \
+          libclang-${{ matrix.clang-version }}-dev \
+          cmake \
+          build-essential
+
+    - name: Set up Clang environment
+      run: |
+        sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${{ matrix.clang-version }} 100
+        sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${{ matrix.clang-version }} 100
+        sudo update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-${{ matrix.clang-version }} 100
+
+    - name: Verify Clang installation
+      run: |
+        clang++ --version
+        llvm-config --version
+
+    - name: Create build directory
+      run: mkdir build
+
+    - name: Configure CMake
+      working-directory: build
+      run: cmake ..
+
+    - name: Build
+      working-directory: build
+      run: make
+
+    - name: Test basic functionality
+      if: matrix.test-examples
+      run: |
+        echo "Testing clang-tool with example..."
+        ./build/bin/clang-tool examples/simple.cc -- -std=c++11
+        echo "Build and basic test successful!"
+
+    - name: Upload build artifacts
+      if: matrix.test-examples
+      uses: actions/upload-artifact@v4
+      with:
+        name: clang-tool-${{ matrix.os }}-clang${{ matrix.clang-version }}
+        path: |
+          build/bin/clang-tool
+          build/bin/builtInInclude.path
+        retention-days: 7
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        brew install llvm cmake
+
+    - name: Set up LLVM environment
+      run: |
+        echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
+        echo "LDFLAGS=-L$(brew --prefix llvm)/lib" >> $GITHUB_ENV
+        echo "CPPFLAGS=-I$(brew --prefix llvm)/include" >> $GITHUB_ENV
+
+    - name: Verify LLVM installation
+      run: |
+        clang++ --version
+        llvm-config --version
+
+    - name: Create build directory
+      run: mkdir build
+
+    - name: Configure CMake
+      working-directory: build
+      run: cmake ..
+
+    - name: Build
+      working-directory: build
+      run: make
+
+    - name: Test basic functionality
+      run: |
+        echo "Testing clang-tool with example..."
+        ./build/bin/clang-tool examples/simple.cc -- -std=c++11
+        echo "macOS build and test successful!"
