@@ -23,6 +23,9 @@ void RenameTransformer::start()
     // Match variable declarations
     auto varDeclMatcher = varDecl(hasName(oldName)).bind("varDecl");
     
+    // Match field declarations (member variables)
+    auto fieldDeclMatcher = fieldDecl(hasName(oldName)).bind("fieldDecl");
+    
     // Match function declarations
     auto funcDeclMatcher = functionDecl(hasName(oldName)).bind("funcDecl");
     
@@ -36,6 +39,7 @@ void RenameTransformer::start()
     auto memberMatcher = memberExpr(member(hasName(oldName))).bind("memberExpr");
 
     finder.addMatcher(varDeclMatcher, this);
+    finder.addMatcher(fieldDeclMatcher, this);
     finder.addMatcher(funcDeclMatcher, this);
     finder.addMatcher(parmDeclMatcher, this);
     finder.addMatcher(declRefMatcher, this);
@@ -55,6 +59,17 @@ void RenameTransformer::run(const MatchFinder::MatchResult &result)
         {
             rewriter.ReplaceText(location, oldName.length(), newName);
             renamedIdentifiers.insert("variable declaration");
+        }
+    }
+    
+    // Handle field declarations (member variables)
+    else if (const auto *fieldDecl = result.Nodes.getNodeAs<FieldDecl>("fieldDecl"))
+    {
+        SourceLocation location = fieldDecl->getLocation();
+        if (shouldRename(location))
+        {
+            rewriter.ReplaceText(location, oldName.length(), newName);
+            renamedIdentifiers.insert("field declaration");
         }
     }
     
